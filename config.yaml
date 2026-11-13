@@ -1,0 +1,34 @@
+# Единая конфигурация пайплайна. Всё, что зависит от реальных данных, правится здесь.
+seed: 42
+segment_len_m: 10
+
+paths:
+  raw: data/raw
+  out: outputs
+  result: result.csv
+
+# Реальное имя колонки -> каноническое имя, которым пользуется код.
+# ВНИМАНИЕ: реальные имена колонок пока неизвестны. После получения данных
+# заполнить левую часть. Колонки, уже названные
+# канонически, перечислять не нужно.
+columns:
+  passport: {}   # id, diameter_mm, wall_mm, steel, coating, start_date, length_m
+  profile: {}    # id, dist_m, z_m
+  vtd: {}        # id, date, dist_m, clock, length_mm, width_mm, depth_pct, type
+  uzt: {}        # id, date, point, dist_m, angle, thickness_mm
+  regime: {}     # id, date, hseg, q_liq, q_oil, q_gas, watercut, p, t, v_liq, re, tss, ph, co2, inhibitor
+                 # необязательные: hseg_start_m, hseg_end_m
+
+# Дата T (дата оцениваемого ВТД) по каждой трубе: id -> YYYY-MM-DD.
+# Если пусто, берётся последняя дата в regime.csv.
+t_dates: {}
+
+# Типы дефектов ВТД, которые НЕ считаются утонением (вмятины, швы и т. п.).
+# Заполнить после аудита значений колонки type.
+vtd_exclude_types: []
+
+# Базовое решение кейса 2 (физика + рельеф). Подбирается на первом ВТД трубы 1.
+case2:
+  lowpoint_window_m: 200     # окно поиска локальных низин
+  lowpoint_weight: 1.0       # насколько низины усиливают коррозию
+  inhibitor_efficiency: 0.7  # доля подавления при ненулевой дозировке
