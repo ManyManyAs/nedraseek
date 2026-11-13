@@ -15,6 +15,12 @@ def validate_result(res: pd.DataFrame, grid: pd.DataFrame) -> list[str]:
     if list(res.columns) != COLS:
         errs.append(f"колонки {list(res.columns)}, ожидались {COLS}")
         return errs
+    num = pd.to_numeric(res["thickness_pred"], errors="coerce")
+    if num.isna().any():
+        errs.append(f"нечисловые или пустые значения thickness_pred: {int(num.isna().sum())}")
+        return errs
+    # Проверяем таблицу в той точности, в какой она будет записана.
+    res = res.assign(thickness_pred=num.round(4))
     if res["thickness_pred"].isna().any():
         errs.append("есть пропуски в thickness_pred")
     if not np.isfinite(res["thickness_pred"].to_numpy(dtype=float)).all():
@@ -40,4 +46,4 @@ def write_result(res: pd.DataFrame, grid: pd.DataFrame, path: str | Path) -> Non
     errs = validate_result(res, grid)
     if errs:
         raise ValueError("result.csv не прошёл проверку: " + "; ".join(errs))
-    res.to_csv(path, index=False, float_format="%.4f")  # десятичный разделитель — точка
+    res.to_csv(path, index=False, float_format="%.4f", lineterminator="\n")  # десятичный разделитель — точка

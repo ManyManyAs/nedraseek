@@ -98,3 +98,25 @@ def test_wrong_segment_key_is_caught():
     grid = pd.DataFrame({"id": [1, 1, 1], "segment_id": [0, 1, 2]})
     bad = pd.DataFrame({"id": [1, 1, 1], "segment_id": [0, 1, 999999], "thickness_pred": [7.0, 6.5, 6.8]})
     assert submission.validate_result(bad, grid)
+
+
+def test_constant_and_written_precision():
+    """Константный ряд даёт NaN, а не случайное число."""
+    assert np.isnan(pearson_r2([0.1, 0.1, 0.1], [1.0, 2.0, 3.0]))
+    grid = pd.DataFrame({"id": [1] * 3, "segment_id": [0, 1, 2]})
+    tiny = grid.assign(thickness_pred=[7.00001, 7.00002, 7.00003])     # после округления до 4 знаков — константа
+    assert submission.validate_result(tiny, grid)
+    assert submission.validate_result(grid.assign(thickness_pred=["7", "x", "6"]), grid)
+
+
+def test_result_does_not_depend_on_row_order():
+    """перестановка строк ВТД не меняет прогноз."""
+    from pipetwin import pipeline
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    cfg["case1"]["n_sim"] = 50
+    P, V = data.load_passport(RAW), data.load_vtd(RAW)
+    p1 = pipeline.run_case1(cfg, P, V)["pred"]["thickness_pred"].to_numpy()
+    raw_shuffled = V.sample(frac=1.0, random_state=7)
+    V2 = raw_shuffled.sort_values(["id", "date", "x", "ang", "dp", "rw", "fl", "fw"], kind="mergesort").reset_index(drop=True)
+    p2 = pipeline.run_case1(cfg, P, V2)["pred"]["thickness_pred"].to_numpy()
+    assert np.allclose(p1, p2)

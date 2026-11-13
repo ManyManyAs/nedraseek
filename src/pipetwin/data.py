@@ -63,7 +63,8 @@ def load_passport(raw: str | Path) -> pd.DataFrame:
 def load_profile(raw: str | Path) -> pd.DataFrame:
     a = pd.read_csv(Path(raw) / FILES["profile"])
     a = a.rename(columns={"total_distance": "dist_m", "z": "z_m"})
-    return a.sort_values(["id", "dist_m"]).drop_duplicates(["id", "dist_m"]).reset_index(drop=True)
+    # Повторы дистанции усредняются, а не берётся первая строка — так порядок выгрузки не важен.
+    return a.groupby(["id", "dist_m"], as_index=False)["z_m"].mean().sort_values(["id", "dist_m"]).reset_index(drop=True)
 
 
 # ---------- ВТД ----------
@@ -96,7 +97,8 @@ def load_vtd(raw: str | Path) -> pd.DataFrame:
     v["internal"] = v["dtype"].map(_INTERNAL).fillna(True)
     v["ang"] = v["ang"].fillna(180.0)
     keep = ["id", "date", "x", "x_raw", "wt", "rw", "dp", "ang", "fl", "fw", "cls", "descr", "internal", "beyond"]
-    return v[keep].reset_index(drop=True)
+    # Стабильный порядок: результат не должен зависеть от порядка строк в выгрузке.
+    return v[keep].sort_values(["id", "date", "x", "ang", "dp", "rw", "fl", "fw"], kind="mergesort").reset_index(drop=True)
 
 
 def run_dates(vtd: pd.DataFrame, pipe_id: int) -> list[pd.Timestamp]:

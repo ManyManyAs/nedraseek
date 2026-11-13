@@ -8,9 +8,13 @@ from . import align, case1, case2, data
 from .validate import mae, pearson_r2, top_recall
 
 
-def _offsets(vtd: pd.DataFrame) -> dict:
-    """Смещение начала участка по трубопроводу: x_raw - x (одинаково во всех пропусках)."""
-    return (vtd["x_raw"] - vtd["x"]).groupby(vtd["id"]).median().round(1).to_dict()
+def _offsets(vtd: pd.DataFrame, date) -> dict:
+    """Смещение начала участка по трубопроводу (x_raw - x) в пропуске date.
+
+    Берётся только стартовый пропуск, чтобы более поздние выгрузки не меняли систему отсчёта.
+    """
+    v = vtd[vtd["date"] == pd.Timestamp(date)]
+    return (v["x_raw"] - v["x"]).groupby(v["id"]).median().round(1).to_dict()
 
 
 def _aligned_pair(V, pid, length, d_mm, date_a, date_b, tol):
@@ -60,7 +64,7 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame) -> dict:
     seed, tol = cfg["seed"], c["match_tol_m"]
     pp = P.set_index("id")
     pipe_ids = P.loc[P["pipeline"] == pp.loc[tid, "pipeline"], "id"].tolist()
-    acc = _offsets(V)
+    acc = _offsets(V, A)
     L_t, wall_t, d_mm = pp.loc[tid, "length_m"], pp.loc[tid, "wall_mm"], pp.loc[tid, "d_mm"]
 
     # --- 1. Опорные участки: известны оба пропуска. Выравнивание и пары дефектов.

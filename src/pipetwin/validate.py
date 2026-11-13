@@ -7,7 +7,12 @@ import numpy as np
 def pearson_r2(y_true, y_pred) -> float:
     """Квадрат коэффициента корреляции Пирсона — метрика организаторов. NaN для константы."""
     a, b = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)
-    if len(a) < 3 or np.std(a) == 0 or np.std(b) == 0:
+    if len(a) != len(b):
+        raise ValueError(f"разная длина: {len(a)} и {len(b)}")
+    ok = np.isfinite(a) & np.isfinite(b)
+    a, b = a[ok], b[ok]
+    # Константа определяется по равенству значений: std от [0.1, 0.1, 0.1] в машинной арифметике не ноль.
+    if len(a) < 3 or np.ptp(a) == 0 or np.ptp(b) == 0:
         return float("nan")
     return float(np.corrcoef(a, b)[0, 1] ** 2)
 
