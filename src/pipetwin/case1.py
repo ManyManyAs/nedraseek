@@ -78,10 +78,13 @@ class GrowthModel:
         return m
 
     def simulate(self, x, dp, wt, length_m: float, wall_mm: float, n_sim: int = 400,
-                 seed: int = 42, pos_sigma: float = 0.0, pos_bump=None) -> np.ndarray:
+                 seed: int = 42, pos_sigma: float = 0.0, pos_bump=None,
+                 repair_mask=None, repair_prob: float = 0.0) -> np.ndarray:
         """Розыгрыши минимальной толщины сегментов. Возвращает массив (n_sim, n_seg).
 
         pos_sigma — СКО ошибки положения в метрах в точке, где pos_bump = 1.
+        repair_mask — дефекты на трубах, которые отчёт стартового пропуска предписал вырезать;
+        с вероятностью repair_prob в розыгрыше эти трубы заменены новыми и дефектов на них нет.
         """
         rng = np.random.default_rng(seed)
         x, dp, wt = (np.asarray(v, dtype=float) for v in (x, dp, wt))
@@ -93,6 +96,7 @@ class GrowthModel:
         seg0 = seg_of(x, length_m)
         wt_seg = pd.Series(wt).groupby(seg0).median().reindex(range(n_seg)).interpolate(limit_direction="both")
         wt_seg = wt_seg.fillna(wall_mm).to_numpy()
+        rep = np.zeros(len(x), dtype=bool) if repair_mask is None else np.asarray(repair_mask, dtype=bool)
         out = np.empty((n_sim, n_seg))
         for s in range(n_sim):
             seg = seg_of(x + rng.normal(0.0, pos_sigma) * bump, length_m) if pos_sigma > 0 else seg0
@@ -101,10 +105,14 @@ class GrowthModel:
                 dp_new[idx] = d + rng.choice(self.pools[d], size=len(idx))
             rw = wt * (1.0 - np.clip(dp_new, 0.0, 95.0) / 100.0)
             alive = rng.random(len(x)) < p_conf
+            present = np.ones(len(x), dtype=bool)
+            if rng.random() < repair_prob:   # число разыгрывается всегда, чтобы поток случайных чисел не зависел от repair_prob
+                present = ~rep          # ремонт выполнен: старых дефектов на заменённых трубах нет
+                alive &= present
             mins = np.full(n_seg, np.inf)
             np.minimum.at(mins, seg[alive], rw[alive])
             # новые дефекты появляются там, где уже есть коррозия
-            counts = rng.poisson(self.new_rate * np.bincount(seg, minlength=n_seg))
+            counts = rng.poisson(self.new_rate * np.bincount(seg[present], minlength=n_seg))
             if counts.sum():
                 seg_new = np.repeat(np.arange(n_seg), counts)
                 rw_new = wt_seg[seg_new] * (1.0 - rng.choice(self.new_dp, size=len(seg_new)) / 100.0)

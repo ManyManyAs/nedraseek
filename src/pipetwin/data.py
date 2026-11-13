@@ -88,6 +88,8 @@ def load_vtd(raw: str | Path) -> pd.DataFrame:
         "Residual Wall Thickness": "rw", "Defect Depth in %": "dp", "Angle": "ang",
         "Feature Length": "fl", "Feature Width": "fw", "Class": "cls",
         "Feature Description": "descr", "Defect Type": "dtype", "is_beyond_pot": "beyond",
+        "Section Number": "sec", "Relative Distance": "rel",
+        "Recommended Repair Method": "rec_repair", "Repair Time (Years)": "repair_time",
     })
     v["date"] = pd.to_datetime(v["date"])
     v = v[v["rw"].notna() & v["dp"].notna()].copy()
@@ -96,9 +98,29 @@ def load_vtd(raw: str | Path) -> pd.DataFrame:
             v.loc[g.index, "dp"] = g["dp"] * 100.0
     v["internal"] = v["dtype"].map(_INTERNAL).fillna(True)
     v["ang"] = v["ang"].fillna(180.0)
-    keep = ["id", "date", "x", "x_raw", "wt", "rw", "dp", "ang", "fl", "fw", "cls", "descr", "internal", "beyond"]
+    keep = ["id", "date", "x", "x_raw", "wt", "rw", "dp", "ang", "fl", "fw", "cls", "descr", "internal", "beyond",
+            "sec", "rel", "rec_repair", "repair_time"]
     # Стабильный порядок: результат не должен зависеть от порядка строк в выгрузке.
     return v[keep].sort_values(["id", "date", "x", "ang", "dp", "rw", "fl", "fw"], kind="mergesort").reset_index(drop=True)
+
+
+def load_joints(raw: str | Path) -> pd.DataFrame:
+    """Начала труб (секций между кольцевыми швами) в каждом пропуске: одна строка на (пропуск, номер трубы).
+
+    Снаряд для каждой записи даёт номер трубы и расстояние от её начала. Начало трубы по одометру —
+    дистанция записи минус это расстояние; берётся медиана по всем записям трубы, включая швы и арматуру.
+    Номера труб пропусков 2022 и 2023 годов совпадают, поэтому по ним дистанции двух пропусков
+    совмещаются точнее, чем по плотности дефектов.
+    """
+    v = pd.read_csv(Path(raw) / FILES["vtd"], low_memory=False,
+                    usecols=["id", "date", "Distance_raw", "Section Number", "Relative Distance"])
+    v = v.dropna(subset=["Section Number", "Relative Distance", "Distance_raw"])
+    v["date"] = pd.to_datetime(v["date"])
+    v["js"] = v["Distance_raw"] - v["Relative Distance"]
+    j = (v.groupby(["date", "Section Number"])
+          .agg(js=("js", "median"), n=("js", "size"), id=("id", "min")).reset_index()
+          .rename(columns={"Section Number": "sec"}))
+    return j.sort_values(["date", "js", "sec"]).reset_index(drop=True)
 
 
 def run_dates(vtd: pd.DataFrame, pipe_id: int) -> list[pd.Timestamp]:

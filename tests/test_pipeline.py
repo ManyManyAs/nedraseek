@@ -79,7 +79,7 @@ def test_pipeline_end_to_end(tmp_path):
     val = pd.read_csv(tmp_path / "out1" / "validation_case1.csv")
     r2 = dict(zip(val["method"], val["r2"]))
     assert r2["Прошлый ВТД, дистанции выровнены"] > r2["Прошлый ВТД без выравнивания дистанций"] + 0.2
-
+    assert r2["Модель роста + 5-й перцентиль (итоговая)"] > r2["Прошлый ВТД, дистанции выровнены"]
 
 def test_angle_wraps_around_zero():
     """Углы 359° и 1° в одной точке: это один дефект."""
@@ -120,3 +120,50 @@ def test_result_does_not_depend_on_row_order():
     V2 = raw_shuffled.sort_values(["id", "date", "x", "ang", "dp", "rw", "fl", "fw"], kind="mergesort").reset_index(drop=True)
     p2 = pipeline.run_case1(cfg, P, V2)["pred"]["thickness_pred"].to_numpy()
     assert np.allclose(p1, p2)
+
+
+def _case1(n_sim=60, **over):
+    from pipetwin import pipeline
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    cfg["case1"].update(n_sim=n_sim, **over)
+    P, V, J = data.load_passport(RAW), data.load_vtd(RAW), data.load_joints(RAW)
+    return pipeline, cfg, P, V, J
+
+
+def test_heldout_block_does_not_leak():
+    """изменение скрытого блока пропуска B не меняет прогноз для этого блока."""
+    pipeline, cfg, P, V, J = _case1()
+    base = pipeline.run_case1(cfg, P, V, J)["val_points"]
+    vid, B = int(base["id"].iloc[0]), pd.Timestamp(cfg["case1"]["target_run"])
+    lo, hi = 200.0, 300.0                                   # блок 2 из пяти: сегменты 20–29
+    V2 = V.copy()
+    m = (V2["id"] == vid) & (V2["date"] == B) & (V2["x"] >= lo) & (V2["x"] < hi)
+    assert m.sum() > 100
+    V2.loc[m, "dp"] = 11.0                                  # портим глубины и толщины скрытого блока
+    V2.loc[m, "rw"] = V2.loc[m, "wt"] * 0.89
+    J2 = J.copy()
+    acc = 5293.1
+    jm = (J2["date"] == B) & (J2["js"] - acc >= lo) & (J2["js"] - acc < hi)
+    assert jm.sum() >= 5
+    J2.loc[jm, "js"] += 3.0                                 # и положение труб внутри блока
+    pert = pipeline.run_case1(cfg, P, V2, J2)["val_points"]
+    blk = base["block"] == 2
+    for col in ("pred_pers", "pred_q05", "pred_mc", "pred_p10", "pred_p90"):
+        assert np.allclose(base.loc[blk, col], pert.loc[blk, col]), col
+    assert not np.allclose(base.loc[blk, "fact"], pert.loc[blk, "fact"])   # факт при этом изменился
+
+
+def test_repair_scenario_raises_flagged_segments():
+    """Сценарий замены труб с предписанием «врезка катушки» действует только на их сегменты."""
+    pipeline, cfg, P, V, J = _case1(repair_prob=0.0)
+    p0 = pipeline.run_case1(cfg, P, V, J)["pred"]
+    cfg["case1"]["repair_prob"] = 1.0
+    p1 = pipeline.run_case1(cfg, P, V, J)["pred"]
+    flag = p1["repair_flag"].to_numpy()
+    assert 3 <= flag.sum() <= 12
+    d = p1["model_only"].to_numpy() - p0["model_only"].to_numpy()
+    assert d[flag].max() > 2.0                               # заменённая труба — почти номинальная стенка
+    far = np.ones(len(p1), dtype=bool)
+    for i in np.where(flag)[0]:
+        far[max(0, i - 2): i + 3] = False
+    assert np.abs(d[far]).mean() < 0.08 and abs(d[far].mean()) < 0.02   # остальные — только шум розыгрыша, без смещения
