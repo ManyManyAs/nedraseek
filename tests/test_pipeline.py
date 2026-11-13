@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from pipetwin import align, data, submission  # noqa: E402
+from pipetwin import align, case1, data, submission  # noqa: E402
 from pipetwin.validate import pearson_r2, top_recall  # noqa: E402
 
 RAW = ROOT / "data" / "raw"
@@ -79,3 +79,22 @@ def test_pipeline_end_to_end(tmp_path):
     val = pd.read_csv(tmp_path / "out1" / "validation_case1.csv")
     r2 = dict(zip(val["method"], val["r2"]))
     assert r2["Прошлый ВТД, дистанции выровнены"] > r2["Прошлый ВТД без выравнивания дистанций"] + 0.2
+
+
+def test_angle_wraps_around_zero():
+    """Углы 359° и 1° в одной точке: это один дефект."""
+    a = pd.DataFrame({"x2": [1.0, 5.0], "ang": [359.0, 180.0], "dp": [20.0, 15.0]})
+    b = pd.DataFrame({"x": [1.0, 5.0], "ang": [1.0, 180.0], "dp": [22.0, 15.0]})
+    pairs, new, conf = case1.match_defects(a, b, d_mm=219.0, tol_m=0.08)
+    assert len(pairs) == 2 and len(new) == 0 and conf.all()
+    assert sorted(pairs["dp_a"]) == [15.0, 20.0]
+    b2 = pd.DataFrame({"x": [1.0], "ang": [0.0]}).assign(dp=10.0)
+    a2 = pd.DataFrame({"x2": [1.0], "ang": [360.0], "dp": [10.0]})
+    assert len(case1.match_defects(a2, b2, 219.0, 0.08)[0]) == 1      # 0° и 360° — одно и то же
+
+
+def test_wrong_segment_key_is_caught():
+    """ответ сверяется с независимой сеткой, а не с самим собой."""
+    grid = pd.DataFrame({"id": [1, 1, 1], "segment_id": [0, 1, 2]})
+    bad = pd.DataFrame({"id": [1, 1, 1], "segment_id": [0, 1, 999999], "thickness_pred": [7.0, 6.5, 6.8]})
+    assert submission.validate_result(bad, grid)

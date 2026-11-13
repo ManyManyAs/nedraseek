@@ -45,9 +45,10 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
 
     # 4. Запись
     both = pd.concat([r1["pred"], r2], ignore_index=True)
-    grid = both[["id", "segment_id"]]
-    expected = sum(int(P.set_index("id").loc[int(i), "n_seg"]) for i in (cfg["case1"]["target_id"], cfg["case2"]["target_id"]))
-    assert len(grid) == expected, f"сегментов {len(grid)}, ожидалось {expected}"
+    # Ожидаемая сетка строится независимо от ответа: из паспортной длины целевых участков.
+    pp = P.set_index("id")
+    grid = pd.concat([pd.DataFrame({"id": int(i), "segment_id": range(int(pp.loc[int(i), "n_seg"]))})
+                      for i in (cfg["case1"]["target_id"], cfg["case2"]["target_id"])], ignore_index=True)
     submission.write_result(both[["id", "segment_id", "thickness_pred"]], grid, cfg["paths"]["result"])
     both[["id", "segment_id", "thickness_pred", "p10", "p90"]].round(4).to_csv(out / "result_with_intervals.csv", index=False)
     r1["validation"].round(4).to_csv(out / "validation_case1.csv", index=False)

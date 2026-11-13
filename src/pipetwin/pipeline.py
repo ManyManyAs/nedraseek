@@ -26,6 +26,15 @@ def _aligned_pair(V, pid, length, d_mm, date_a, date_b, tol):
     return {"a": a, "b": b, "coarse": coarse, "pairs": pairs, "new": new, "confirmed": confirmed, "L": length}
 
 
+def _bump(x, length: float) -> np.ndarray:
+    """Форма ошибки положения вдоль участка: у концов, где сдвиг измерен, меньше; в середине — больше.
+
+    Ошибка одна на весь розыгрыш (коррелированный дрейф одометра), а не независимая для каждого дефекта.
+    Одна и та же функция используется в проверке и в итоговом прогнозе.
+    """
+    return 0.25 + 0.75 * np.sin(np.pi * np.clip(np.asarray(x, dtype=float), 0, length) / length)
+
+
 def _fit(parts) -> case1.GrowthModel:
     return case1.GrowthModel.fit(
         pd.concat([p["pairs"] for p in parts], ignore_index=True),
@@ -87,7 +96,8 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame) -> dict:
             train = [_subset(s, lo, hi, inside=False)] + [o for q, o in anchors.items() if q != pid]
             train = [t for t in train if len(t["pairs"])]
             gm = _fit(train)
-            sm = case1.summarize(gm.simulate(s["a"]["x2"], s["a"]["dp"], s["a"]["wt"], L, wall, n_sim=400, seed=seed))
+            sm = case1.summarize(gm.simulate(s["a"]["x2"], s["a"]["dp"], s["a"]["wt"], L, wall, n_sim=c["n_sim"],
+                                             seed=seed, pos_sigma=c["pos_sigma_m"], pos_bump=_bump(s["a"]["x2"], L)))
             seg = (fact["segment_id"] * data.SEG_LEN >= lo) & (fact["segment_id"] * data.SEG_LEN < hi)
             mc[seg], p10[seg], p90[seg] = sm["thickness_pred"][seg], sm["p10"][seg], sm["p90"][seg]
         st_al = data.segment_state(s["a"], L, wall, x_col="x2")
@@ -132,7 +142,7 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame) -> dict:
     raw_b = src["x_raw"] + drift(src["x_raw"])
     src["xt"] = raw_b - acc[tid]
     src = src[(src["xt"] >= 0) & (src["xt"] < L_t)]
-    bump = 0.25 + 0.75 * np.sin(np.pi * src["xt"].to_numpy() / L_t)  # у опорных концов сдвиг известен лучше
+    bump = _bump(src["xt"], L_t)
     gm = _fit(list(anchors.values()))
     sims = gm.simulate(src["xt"], src["dp"], src["wt"], L_t, wall_t, n_sim=c["n_sim"], seed=seed,
                        pos_sigma=c["pos_sigma_m"], pos_bump=bump)
