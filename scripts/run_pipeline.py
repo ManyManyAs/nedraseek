@@ -1,68 +1,72 @@
-"""Единая точка входа: исходные CSV -> result.csv + таблицы валидации.
+"""Единая точка входа: исходные CSV из data/raw/ -> result.csv, валидация, вспомогательные таблицы.
 
 Запуск из корня репозитория:  python scripts/run_pipeline.py [--config config.yaml]
 """
 from __future__ import annotations
 
 import argparse
-import random
+import json
 import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from pipetwin import baselines, io, segments, submission, validate  # noqa: E402
+from pipetwin import data, pipeline, submission  # noqa: E402
 
 
 def main(config: str = "config.yaml") -> pd.DataFrame:
-    cfg = io.load_config(config)
-    random.seed(cfg["seed"])
+    cfg = yaml.safe_load(Path(config).read_text(encoding="utf-8"))
     np.random.seed(cfg["seed"])
-    seg_len = cfg["segment_len_m"]
-    out_dir = Path(cfg["paths"]["out"])
-    out_dir.mkdir(parents=True, exist_ok=True)
+    raw, out = cfg["paths"]["raw"], Path(cfg["paths"]["out"])
+    out.mkdir(parents=True, exist_ok=True)
+    pd.set_option("display.width", 200)
 
-    # 1. Загрузка и сетка сегментов
-    t = io.load_all(cfg)
-    grid = segments.build_grid(t["passport"], seg_len, io.load_sample_result(cfg))
-    print(f"[1] сегментов: {len(grid)} по трубам: {grid.groupby('id').size().to_dict()}")
+    # 1. Загрузка и очистка
+    P, V, prof = data.load_passport(raw), data.load_vtd(raw), data.load_profile(raw)
+    print(f"[1] участков: {len(P)}, дефектов потери металла: {len(V)}, пропусков ВТД: {V['date'].nunique()}")
 
-    # 2. Привязка данных к сегментам
-    vtd_seg = segments.vtd_by_segment(t["vtd"], t["passport"], seg_len, cfg.get("vtd_exclude_types"))
-    prof = segments.profile_features(grid, t["profile"], seg_len, cfg["case2"]["lowpoint_window_m"])
-    seg2hseg = segments.map_regime_to_segments(grid, t["regime"])
+    # 2. Кейс 1
+    r1 = pipeline.run_case1(cfg, P, V)
+    lo, hi = r1["drift_ends"]
+    print(f"[2] кейс 1, участок {cfg['case1']['target_id']}: сдвиг дистанций {lo:.1f} м в начале, {hi:.1f} м в конце")
+    print("    проверка на соседних участках с известным целевым пропуском:")
+    print(r1["validation"].round(3).to_string(index=False))
+    print(f"    покрытие интервала P10–P90: {r1['coverage']:.0%}")
+    print("    точность «прошлого ВТД» по горизонтам:")
+    print(r1["horizons"].round(3).to_string(index=False))
 
-    # 3. Прогноз по каждой трубе: кейс определяется наличием прошлых ВТД
-    preds, bt = [], []
-    for pid in grid["id"].unique():
-        runs = sorted(pd.to_datetime(vtd_seg.loc[vtd_seg["id"] == pid, "date"].unique()))
-        if runs:
-            t_date = pd.Timestamp((cfg.get("t_dates") or {}).get(pid) or t["regime"].loc[t["regime"]["id"] == pid, "date"].max())
-            if len(runs) >= 2:
-                p = baselines.linear_growth(grid, vtd_seg, pid, runs[-2], runs[-1], t_date)
-                method = "linear_growth"
-            else:
-                p = baselines.persistence(grid, vtd_seg, pid, runs[-1])
-                method = "persistence"
-            bt.append(validate.backtest_case1(grid, vtd_seg, pid))
-            print(f"[3] труба {pid}: кейс 1, пропусков ВТД {len(runs)}, метод {method}")
-        else:
-            p = baselines.physics_case2(grid, prof, seg2hseg, t["regime"], pid, cfg)
-            print(f"[3] труба {pid}: кейс 2, метод physics_case2")
-        preds.append(p)
+    # 3. Кейс 2
+    r2 = pipeline.run_case2(cfg, P, prof)
+    print(f"[3] кейс 2, участок {cfg['case2']['target_id']}: {len(r2)} сегментов, физическая оценка по рельефу")
 
-    # 4. Валидация и запись
-    if bt and sum(len(b) for b in bt):
-        bt_df = pd.concat(bt, ignore_index=True)
-        bt_df.to_csv(out_dir / "backtest_case1.csv", index=False)
-        print("[4] бэктест кейса 1:\n" + bt_df.to_string(index=False))
-    res = pd.concat(preds, ignore_index=True)
-    submission.write_result(res, grid, cfg["paths"]["result"])
-    print(f"[4] записан {cfg['paths']['result']}: {len(res)} строк")
-    return res
+    # 4. Запись
+    both = pd.concat([r1["pred"], r2], ignore_index=True)
+    grid = both[["id", "segment_id"]]
+    expected = sum(int(P.set_index("id").loc[int(i), "n_seg"]) for i in (cfg["case1"]["target_id"], cfg["case2"]["target_id"]))
+    assert len(grid) == expected, f"сегментов {len(grid)}, ожидалось {expected}"
+    submission.write_result(both[["id", "segment_id", "thickness_pred"]], grid, cfg["paths"]["result"])
+    both[["id", "segment_id", "thickness_pred", "p10", "p90"]].round(4).to_csv(out / "result_with_intervals.csv", index=False)
+    r1["validation"].round(4).to_csv(out / "validation_case1.csv", index=False)
+    r1["horizons"].round(4).to_csv(out / "horizons_case1.csv", index=False)
+    r1["alignment"].round(3).to_csv(out / "alignment_case1.csv", index=False)
+    r1["pred"].round(4).to_csv(out / "case1_segments.csv", index=False)
+    r2.round(4).to_csv(out / "case2_segments.csv", index=False)
+    pd.concat([pipeline.top_segments(r1["pred"]), pipeline.top_segments(r2)]).round(3).to_csv(out / "top10_segments.csv", index=False)
+    gm = r1["model"]
+    summary = {
+        "case1": {"target_id": int(cfg["case1"]["target_id"]), "n_segments": int(len(r1["pred"])),
+                  "validation": r1["validation"].round(4).to_dict("records"), "p10_p90_coverage": round(r1["coverage"], 3),
+                  "matched_pairs": int(gm.n_pairs), "new_defects_per_old": round(gm.new_rate, 3),
+                  "shift_start_m": round(lo, 2), "shift_end_m": round(hi, 2)},
+        "case2": {"target_id": int(cfg["case2"]["target_id"]), "n_segments": int(len(r2)), "method": "relief score"},
+    }
+    (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"[4] записан {cfg['paths']['result']}: {len(both)} строк; таблицы — в {out}/")
+    return both
 
 
 if __name__ == "__main__":
