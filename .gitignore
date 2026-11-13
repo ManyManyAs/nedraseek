@@ -10,3 +10,4 @@ catboost_info/
 data/synthetic/
 outputs/*
 !outputs/.gitkeep
+!outputs/figures/
