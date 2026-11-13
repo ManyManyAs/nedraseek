@@ -167,3 +167,17 @@ def test_repair_scenario_raises_flagged_segments():
     for i in np.where(flag)[0]:
         far[max(0, i - 2): i + 3] = False
     assert np.abs(d[far]).mean() < 0.08 and abs(d[far].mean()) < 0.02   # остальные — только шум розыгрыша, без смещения
+
+
+def test_case2_reference_and_shape():
+    """Кейс 2: прогноз не константа, в пределах стенки, а проверка признака воспроизводится."""
+    from pipetwin import pipeline
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    P, V, prof = data.load_passport(RAW), data.load_vtd(RAW), data.load_profile(RAW)
+    r = pipeline.run_case2(cfg, P, prof, V)
+    pred, ref = r["pred"], r["reference"]
+    assert len(pred) == 1475 and pred["thickness_pred"].nunique() > 100
+    assert (pred["p10"] <= pred["thickness_pred"]).all() and (pred["thickness_pred"] <= pred["p90"]).all()
+    assert pred["thickness_pred"].between(0.4 * 4.5, 4.5).all()
+    assert int(cfg["case2"]["target_id"]) not in set(ref["id"])          # целевой участок в проверке не участвует
+    assert ref["r2"].notna().all() and ref["r2"].between(0, 0.3).all()   # сигнал слабый — и мы это знаем

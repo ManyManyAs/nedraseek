@@ -47,9 +47,12 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
         print(r1["repairs"].round(2).to_string(index=False))
 
     # 3. Кейс 2
-    r2 = pipeline.run_case2(cfg, P, prof)
+    c2 = pipeline.run_case2(cfg, P, prof, V)
+    r2 = c2["pred"]
     t2 = int(cfg["case2"]["target_id"])
-    print(f"[3] кейс 2, участок {t2}: {len(r2)} сегментов, физическая оценка по рельефу")
+    print(f"[3] кейс 2, участок {t2}: {len(r2)} сегментов, прогноз по сглаженной высотной отметке")
+    print("    сила признака на первых пропусках ВТД других трубопроводов (признак не обучается):")
+    print(c2["by_pipeline"].round(3).to_string(index=False))
 
     # 4. Запись
     both = pd.concat([r1["pred"], r2], ignore_index=True)
@@ -67,6 +70,7 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
     r1["repairs"].round(3).to_csv(out / "repairs_case1.csv", index=False)
     r1["pred"].round(4).to_csv(out / "case1_segments.csv", index=False)
     r2.round(4).to_csv(out / "case2_segments.csv", index=False)
+    c2["reference"].round(4).to_csv(out / "validation_case2.csv", index=False)
     pd.concat([pipeline.top_segments(r1["pred"], pp.loc[t1, "length_m"]),
                pipeline.top_segments(r2, pp.loc[t2, "length_m"])]).round(3).to_csv(out / "top10_segments.csv", index=False)
     gm = r1["model"]
@@ -83,7 +87,10 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
                   "pos_sigma_final_m": round(r1["pos_sigma"], 2), "pos_sigma_validation_m": c1["val_pos_sigma_m"],
                   "blend_w": c1["blend_w"], "repair_prob": c1["repair_prob"],
                   "repair_joints": r1["repairs"].round(2).to_dict("records")},
-        "case2": {"target_id": t2, "n_segments": int(len(r2)), "method": "relief score"},
+        "case2": {"target_id": t2, "n_segments": int(len(r2)),
+                  "method": "линейная функция высотной отметки, сглаженной в окне %d м" % cfg["case2"]["smooth_window_m"],
+                  "reference_mean_loss": round(c2["mean_loss"], 3), "reference_p90_loss": round(c2["high_loss"], 3),
+                  "feature_r2_by_pipeline": c2["by_pipeline"].round(4).to_dict("records")},
     }
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[4] записан {cfg['paths']['result']}: {len(both)} строк; таблицы — в {out}/")

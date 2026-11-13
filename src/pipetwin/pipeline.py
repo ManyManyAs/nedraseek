@@ -237,13 +237,19 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
 
 # ---------------------------------------------------------------- кейс 2 и общее
 
-def run_case2(cfg: dict, P: pd.DataFrame, profile: pd.DataFrame) -> pd.DataFrame:
+def run_case2(cfg: dict, P: pd.DataFrame, profile: pd.DataFrame, V: pd.DataFrame) -> dict:
     c = cfg["case2"]
-    row = P.set_index("id").loc[int(c["target_id"])]
-    pred = case2.predict(profile, int(c["target_id"]), row["length_m"], row["wall_mm"], c["mean_loss_frac"], c["spread"])
-    pred.insert(0, "id", int(c["target_id"]))
+    tid = int(c["target_id"])
+    row = P.set_index("id").loc[tid]
+    ref, mean_loss, high_loss = case2.reference_table(P, V, profile, exclude_ids={tid}, window_m=c["smooth_window_m"])
+    pred = case2.predict(profile, tid, row["length_m"], row["wall_mm"], mean_loss, high_loss, c["spread"], c["smooth_window_m"])
+    pred.insert(0, "id", tid)
     pred["wall_mm"] = row["wall_mm"]
-    return pred
+    by_pipe = (ref.groupby("pipeline").apply(lambda g: pd.Series({
+        "sections": len(g), "n_segments": int(g["n_segments"].sum()),
+        "r2_weighted": float(np.average(g["r2"], weights=g["n_segments"])),
+        "low_is_thinner_sections": int(g["low_is_thinner"].sum())}), include_groups=False).reset_index())
+    return {"pred": pred, "reference": ref, "by_pipeline": by_pipe, "mean_loss": mean_loss, "high_loss": high_loss}
 
 
 def top_segments(pred: pd.DataFrame, length_m: float, frac: float = 0.10) -> pd.DataFrame:
