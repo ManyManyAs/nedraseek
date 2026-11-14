@@ -178,6 +178,7 @@ def test_case2_reference_and_shape():
     pred, ref = r["pred"], r["reference"]
     assert len(pred) == 1475 and pred["thickness_pred"].nunique() > 100
     assert (pred["p10"] <= pred["thickness_pred"]).all() and (pred["thickness_pred"] <= pred["p90"]).all()
-    assert pred["thickness_pred"].between(0.4 * 4.5, 4.5).all()
+    assert pred["thickness_pred"].between(0.3 * 4.5, 4.5).all()
     assert int(cfg["case2"]["target_id"]) not in set(ref["id"])          # целевой участок в проверке не участвует
+    assert (pd.to_datetime(ref["run"]) < pd.Timestamp(cfg["case2"]["target_date"])).all()   # только пропуски до T
     assert ref["r2"].notna().all() and ref["r2"].between(0, 0.3).all()   # сигнал слабый — и мы это знаем

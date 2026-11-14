@@ -175,10 +175,9 @@ def case2_signal(ref: pd.DataFrame) -> None:
     g = (ref.groupby("pipeline").apply(lambda d: pd.Series({"r2": np.average(d["r2"], weights=d["n_segments"]),
                                                            "n": d["n_segments"].sum()}), include_groups=False)
          .reset_index().sort_values("r2"))
-    label = {"Куст-1 - ДНС-1": "Куст-1 - ДНС-1\nнефть, вода, газ", "УЗ-1 КПСОД - ДНС-1": "УЗ-1 - ДНС-1 (ВТД 2014)\nнефть, вода, газ",
-             "УЗ-3 КПСОД - УЗ-4": "УЗ-3 - УЗ-4\nтоварная нефть, как целевой"}
-    fig, ax = plt.subplots(figsize=(8.6, 3.4))
-    colors = [BLUE if "УЗ-3" in p else "#a9c8ee" for p in g["pipeline"]]
+    label = {"Куст-1 - ДНС-1": "Куст-1 - ДНС-1 (ВТД 2018)\nнефть, вода, газ", "УЗ-1 КПСОД - ДНС-1": "УЗ-1 - ДНС-1 (ВТД 2014)\nнефть, вода, газ"}
+    fig, ax = plt.subplots(figsize=(8.6, 2.6))
+    colors = [BLUE] * len(g)
     ax.barh([label.get(p, p) for p in g["pipeline"]], g["r2"], color=colors, height=0.55)
     for y, (v, n) in enumerate(zip(g["r2"], g["n"])):
         ax.text(v, y, f"  {v:.2f}".replace(".", ",") + f"   ({int(n)} сегм.)", va="center", fontsize=10, color=INK2)
@@ -186,7 +185,7 @@ def case2_signal(ref: pd.DataFrame) -> None:
     ax.set_xticks([0, 0.05, 0.10])
     ax.set_xticklabels(["0", "0,05", "0,10"])
     ax.grid(axis="y", visible=False)
-    ax.set_xlabel("r² высотной отметки и толщины на первом пропуске ВТД")
+    ax.set_xlabel("r² высотной отметки и толщины на первом пропуске ВТД до T = 01.07.2022")
     ax.set_title("Кейс 2: рельеф объясняет не больше 9 % разброса толщины")
     _save(fig, "case2_signal.png")
 

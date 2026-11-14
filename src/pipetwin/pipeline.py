@@ -248,7 +248,8 @@ def run_case2(cfg: dict, P: pd.DataFrame, profile: pd.DataFrame, V: pd.DataFrame
     c = cfg["case2"]
     tid = int(c["target_id"])
     row = P.set_index("id").loc[tid]
-    ref, mean_loss, high_loss = case2.reference_table(P, V, profile, exclude_ids={tid}, window_m=c["smooth_window_m"])
+    ref, mean_loss, high_loss = case2.reference_table(P, V, profile, exclude_ids={tid}, window_m=c["smooth_window_m"],
+                                                      before=c["target_date"])
     pred = case2.predict(profile, tid, row["length_m"], row["wall_mm"], mean_loss, high_loss, c["spread"], c["smooth_window_m"])
     pred.insert(0, "id", tid)
     pred["wall_mm"] = row["wall_mm"]

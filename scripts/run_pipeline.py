@@ -51,7 +51,7 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
     r2 = c2["pred"]
     t2 = int(cfg["case2"]["target_id"])
     print(f"[3] кейс 2, участок {t2}: {len(r2)} сегментов, прогноз по сглаженной высотной отметке")
-    print("    сила признака на первых пропусках ВТД других трубопроводов (признак не обучается):")
+    print(f"    сила признака на первых пропусках ВТД других трубопроводов до T = {cfg['case2']['target_date']}:")
     print(c2["by_pipeline"].round(3).to_string(index=False))
 
     # 4. Запись
@@ -80,7 +80,7 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
     gm = r1["model"]
     c1 = cfg["case1"]
     summary = {
-        "case1": {"target_id": t1, "n_segments": int(len(r1["pred"])),
+        "case1": {"target_id": t1, "target_date": cfg["case1"]["target_run"], "n_segments": int(len(r1["pred"])),
                   "validation_section": int(r1["val_section"]),
                   "validation_scheme": f"{c1['val_blocks']} блоков сегментов скрыты по очереди, зазор {c1['val_gap_m']} м; "
                                        "сдвиг и закон роста оцениваются без скрытого блока",
@@ -93,7 +93,7 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
                   "repair_joints": r1["repairs"].round(2).to_dict("records"),
                   "repair_sensitivity_segments": r1["pred"].loc[r1["pred"]["repair_flag"],
                       ["segment_id", "if_no_repair", "if_repaired", "thickness_pred"]].round(2).to_dict("records")},
-        "case2": {"target_id": t2, "n_segments": int(len(r2)),
+        "case2": {"target_id": t2, "target_date": cfg["case2"]["target_date"], "n_segments": int(len(r2)),
                   "method": "линейная функция высотной отметки, сглаженной в окне %d м" % cfg["case2"]["smooth_window_m"],
                   "reference_mean_loss": round(c2["mean_loss"], 3), "reference_p90_loss": round(c2["high_loss"], 3),
                   "feature_r2_by_pipeline": c2["by_pipeline"].round(4).to_dict("records")},
