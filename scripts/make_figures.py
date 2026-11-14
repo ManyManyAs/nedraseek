@@ -134,8 +134,7 @@ def alignment(js: pd.DataFrame, P: pd.DataFrame, target: int) -> None:
             ha="center", fontsize=10, color=INK2)
     ax.plot([lo_t, hi_t], [js.loc[js["js_a"] == lo_t, "shift"].iloc[0], js.loc[js["js_a"] == hi_t, "shift"].iloc[0]],
             color=BLUE, lw=2, ls=(0, (5, 3)), label="Интерполяция внутри участка")
-    ax.scatter(js["js_a"], js["shift"], s=34, color=BLUE, edgecolor=SURFACE, linewidth=1.2, zorder=3,
-               label="Начала общих труб")
+    ax.scatter(js["js_a"], js["shift"], s=26, color=ORANGE, linewidth=0, zorder=3, label="Начала общих труб")
     ax.set_xlabel("Дистанция по трубопроводу в пропуске 2022 года, м")
     ax.set_ylabel("Сдвиг 2023 − 2022, м")
     ax.set_ylim(-0.5, 14)
