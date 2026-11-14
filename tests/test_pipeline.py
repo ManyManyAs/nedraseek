@@ -148,7 +148,7 @@ def test_heldout_block_does_not_leak():
     J2.loc[jm, "js"] += 3.0                                 # и положение труб внутри блока
     pert = pipeline.run_case1(cfg, P, V2, J2)["val_points"]
     blk = base["block"] == 2
-    for col in ("pred_pers", "pred_q05", "pred_mc", "pred_p10", "pred_p90"):
+    for col in ("pred_pers", "pred_q05", "pred_mc", "pred_blend", "pred_p10", "pred_p90"):
         assert np.allclose(base.loc[blk, col], pert.loc[blk, col]), col
     assert not np.allclose(base.loc[blk, "fact"], pert.loc[blk, "fact"])   # факт при этом изменился
 

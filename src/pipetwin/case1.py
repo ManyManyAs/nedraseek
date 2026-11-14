@@ -79,12 +79,13 @@ class GrowthModel:
 
     def simulate(self, x, dp, wt, length_m: float, wall_mm: float, n_sim: int = 400,
                  seed: int = 42, pos_sigma: float = 0.0, pos_bump=None,
-                 repair_mask=None, repair_prob: float = 0.0) -> np.ndarray:
+                 repair_mask=None, repair_prob: float = 0.0, repair_groups=None) -> np.ndarray:
         """Розыгрыши минимальной толщины сегментов. Возвращает массив (n_sim, n_seg).
 
         pos_sigma — СКО ошибки положения в метрах в точке, где pos_bump = 1.
-        repair_mask — дефекты на трубах, которые отчёт стартового пропуска предписал вырезать;
-        с вероятностью repair_prob в розыгрыше эти трубы заменены новыми и дефектов на них нет.
+        repair_mask — дефекты на трубах, которые отчёт стартового пропуска предписал вырезать.
+        repair_groups — номер трубы для каждого дефекта. Каждая такая труба в розыгрыше заменена
+        новой независимо от других с вероятностью repair_prob, и дефектов на ней нет.
         """
         rng = np.random.default_rng(seed)
         x, dp, wt = (np.asarray(v, dtype=float) for v in (x, dp, wt))
@@ -97,6 +98,9 @@ class GrowthModel:
         wt_seg = pd.Series(wt).groupby(seg0).median().reindex(range(n_seg)).interpolate(limit_direction="both")
         wt_seg = wt_seg.fillna(wall_mm).to_numpy()
         rep = np.zeros(len(x), dtype=bool) if repair_mask is None else np.asarray(repair_mask, dtype=bool)
+        grp = np.zeros(len(x), dtype=int) if repair_groups is None else np.asarray(repair_groups)
+        rep_groups = np.unique(grp[rep])
+        rep_idx = {g: np.where(rep & (grp == g))[0] for g in rep_groups}
         out = np.empty((n_sim, n_seg))
         for s in range(n_sim):
             seg = seg_of(x + rng.normal(0.0, pos_sigma) * bump, length_m) if pos_sigma > 0 else seg0
@@ -106,9 +110,11 @@ class GrowthModel:
             rw = wt * (1.0 - np.clip(dp_new, 0.0, 95.0) / 100.0)
             alive = rng.random(len(x)) < p_conf
             present = np.ones(len(x), dtype=bool)
-            if rng.random() < repair_prob:   # число разыгрывается всегда, чтобы поток случайных чисел не зависел от repair_prob
-                present = ~rep          # ремонт выполнен: старых дефектов на заменённых трубах нет
-                alive &= present
+            u = rng.random(max(len(rep_groups), 1))   # разыгрывается всегда: поток случайных чисел не зависит от repair_prob
+            for g, ug in zip(rep_groups, u):
+                if ug < repair_prob:
+                    present[rep_idx[g]] = False          # труба заменена: старых дефектов на ней нет
+            alive &= present
             mins = np.full(n_seg, np.inf)
             np.minimum.at(mins, seg[alive], rw[alive])
             # новые дефекты появляются там, где уже есть коррозия

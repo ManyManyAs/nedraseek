@@ -144,7 +144,7 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
     fact = data.segment_state(anchors[vid]["b"], Lv, wall_v)
     n = len(fact)
     gap = c["val_gap_m"]
-    P_ = {k: np.full(n, np.nan) for k in ("raw", "pers", "q05", "mc", "p10", "p90")}
+    P_ = {k: np.full(n, np.nan) for k in ("raw", "pers", "q05", "mc", "p10", "p90", "blend")}
     block_of = np.zeros(n, dtype=int)
     for bi, blk in enumerate(np.array_split(np.arange(n), c["val_blocks"])):
         lo, hi = blk[0] * data.SEG_LEN, (blk[-1] + 1) * data.SEG_LEN
@@ -157,9 +157,11 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
         P_["raw"][blk] = data.segment_state(s["a"], Lv, wall_v)["thk_min"].to_numpy()[blk]
         P_["pers"][blk], P_["q05"][blk] = st["thk_min"].to_numpy()[blk], st["rw_q05"].to_numpy()[blk]
         P_["mc"][blk], P_["p10"][blk], P_["p90"][blk] = sm["thickness_pred"][blk], sm["p10"][blk], sm["p90"][blk]
+        # Смесь нормируется по прогнозам этого фолда на всём участке, как в итоговом прогнозе.
+        # Метки скрытого блока в эти статистики не попадают.
+        P_["blend"][blk] = blend(sm["thickness_pred"].to_numpy(), st["rw_q05"].to_numpy(), c["blend_w"])[blk]
         block_of[blk] = bi
     y = fact["thk_min"].to_numpy()
-    P_["blend"] = blend(P_["mc"], P_["q05"], c["blend_w"])
     horizon = round((B - A).days / 365.25, 2)
     methods = (("Прошлый ВТД без выравнивания дистанций", "raw", "raw"),
                ("Прошлый ВТД, дистанции выровнены", "pers", "pers"),
@@ -210,9 +212,14 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
     gm = _fit(list(anchors.values()))
     sims = gm.simulate(src["xt"], src["dp"], src["wt"], L_t, wall_t, n_sim=c["n_sim"], seed=seed,
                        pos_sigma=pos_sigma, pos_bump=_bump(src["xt"], L_t),
-                       repair_mask=in_cut, repair_prob=c["repair_prob"])
+                       repair_mask=in_cut, repair_prob=c["repair_prob"], repair_groups=src["sec"].to_numpy())
     pred = case1.summarize(sims)
     prev = data.segment_state(src, L_t, wall_t, x_col="xt")
+    # Чувствительность к сценарию ремонта: прогноз модели при «ремонта не было» и «заменены все три».
+    for tag, prob in (("if_no_repair", 0.0), ("if_repaired", 1.0)):
+        pred[tag] = case1.summarize(gm.simulate(src["xt"], src["dp"], src["wt"], L_t, wall_t, n_sim=max(200, c["n_sim"] // 5),
+                                                seed=seed, pos_sigma=pos_sigma, pos_bump=_bump(src["xt"], L_t),
+                                                repair_mask=in_cut, repair_prob=prob, repair_groups=src["sec"].to_numpy()))["thickness_pred"]
     pred["model_only"] = pred["thickness_pred"]
     pred["thickness_pred"] = blend(pred["model_only"].to_numpy(), prev["rw_q05"].to_numpy(), c["blend_w"])
     # На трубах под замену 5-й перцентиль описывает трубу, которой, скорее всего, уже нет: оставляем модель.

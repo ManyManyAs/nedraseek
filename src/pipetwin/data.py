@@ -96,7 +96,7 @@ def load_vtd(raw: str | Path) -> pd.DataFrame:
     for d, g in v.groupby("date"):
         if g["dp"].max() <= 1.5:  # глубина записана долей
             v.loc[g.index, "dp"] = g["dp"] * 100.0
-    v["internal"] = v["dtype"].map(_INTERNAL).fillna(True)
+    v["internal"] = v["dtype"].map(_INTERNAL).astype("boolean").fillna(True).astype(bool)
     v["ang"] = v["ang"].fillna(180.0)
     keep = ["id", "date", "x", "x_raw", "wt", "rw", "dp", "ang", "fl", "fw", "cls", "descr", "internal", "beyond",
             "sec", "rel", "rec_repair", "repair_time"]
