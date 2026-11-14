@@ -3,11 +3,6 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 .venv/
-catboost_info/
 
-# Исходные данные организаторов лежат в data/raw/ и хранятся в репозитории.
-# ВНИМАНИЕ: в них есть координаты (lat/lon). Репозиторий не делать публичным без решения команды.
+# В data/raw/ есть координаты трасс: репозиторий не делать публичным без согласования с организаторами.
 data/synthetic/
-outputs/*
-!outputs/.gitkeep
-!outputs/figures/

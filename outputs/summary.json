@@ -1,0 +1,154 @@
+{
+  "case1": {
+    "target_id": 1250022871,
+    "target_date": "2023-12-01",
+    "n_segments": 525,
+    "validation_section": 1250011604,
+    "validation_scheme": "5 блоков сегментов скрыты по очереди, зазор 10 м; сдвиг и закон роста оцениваются без скрытого блока",
+    "validation": [
+      {
+        "method": "Прошлый ВТД без выравнивания дистанций",
+        "horizon_years": 1.4,
+        "n_segments": 50,
+        "r2": 0.1608,
+        "mae_mm": 0.48,
+        "top10_recall": 0.2
+      },
+      {
+        "method": "Прошлый ВТД, дистанции выровнены",
+        "horizon_years": 1.4,
+        "n_segments": 50,
+        "r2": 0.6816,
+        "mae_mm": 0.3292,
+        "top10_recall": 0.4
+      },
+      {
+        "method": "5-й перцентиль толщины по дефектам сегмента",
+        "horizon_years": 1.4,
+        "n_segments": 50,
+        "r2": 0.7396,
+        "mae_mm": 0.6038,
+        "top10_recall": 0.4
+      },
+      {
+        "method": "Модель роста дефектов",
+        "horizon_years": 1.4,
+        "n_segments": 50,
+        "r2": 0.6946,
+        "mae_mm": 0.212,
+        "top10_recall": 0.6
+      },
+      {
+        "method": "Модель роста + 5-й перцентиль (итоговая)",
+        "horizon_years": 1.4,
+        "n_segments": 50,
+        "r2": 0.7535,
+        "mae_mm": 0.2023,
+        "top10_recall": 0.6
+      }
+    ],
+    "p10_p90_coverage": 0.8,
+    "matched_pairs": 2772,
+    "new_defects_per_old": 0.22,
+    "shift_start_m": 1.82,
+    "shift_end_m": 7.47,
+    "pos_sigma_final_m": 1.0,
+    "pos_sigma_validation_m": 0.25,
+    "blend_w": 0.5,
+    "repair_prob": 0.8,
+    "repair_joints": [
+      {
+        "sec": 1370.0,
+        "dist_from_m": 1309.15,
+        "dist_to_m": 1319.61,
+        "defects": 406,
+        "max_depth_pct": 54.0,
+        "min_thk_mm": 3.68
+      },
+      {
+        "sec": 1420.0,
+        "dist_from_m": 1348.81,
+        "dist_to_m": 1359.31,
+        "defects": 261,
+        "max_depth_pct": 56.0,
+        "min_thk_mm": 3.52
+      },
+      {
+        "sec": 1890.0,
+        "dist_from_m": 1839.53,
+        "dist_to_m": 1850.34,
+        "defects": 486,
+        "max_depth_pct": 50.0,
+        "min_thk_mm": 4.0
+      }
+    ],
+    "repair_sensitivity_segments": [
+      {
+        "segment_id": 130,
+        "if_no_repair": 3.71,
+        "if_repaired": 4.11,
+        "thickness_pred": 4.01
+      },
+      {
+        "segment_id": 131,
+        "if_no_repair": 3.12,
+        "if_repaired": 7.9,
+        "thickness_pred": 7.0
+      },
+      {
+        "segment_id": 134,
+        "if_no_repair": 5.16,
+        "if_repaired": 6.01,
+        "thickness_pred": 5.8
+      },
+      {
+        "segment_id": 135,
+        "if_no_repair": 3.06,
+        "if_repaired": 6.37,
+        "thickness_pred": 5.71
+      },
+      {
+        "segment_id": 183,
+        "if_no_repair": 3.79,
+        "if_repaired": 3.8,
+        "thickness_pred": 3.79
+      },
+      {
+        "segment_id": 184,
+        "if_no_repair": 3.51,
+        "if_repaired": 6.62,
+        "thickness_pred": 6.01
+      },
+      {
+        "segment_id": 185,
+        "if_no_repair": 4.3,
+        "if_repaired": 5.68,
+        "thickness_pred": 5.42
+      }
+    ]
+  },
+  "case2": {
+    "target_id": 1250009583,
+    "target_date": "2022-07-01",
+    "n_segments": 1475,
+    "method": "линейная функция высотной отметки, сглаженной в окне 1000 м",
+    "reference_mean_loss": 0.207,
+    "reference_p90_loss": 0.389,
+    "feature_r2_by_pipeline": [
+      {
+        "pipeline": "Куст-1 - ДНС-1",
+        "sections": 2.0,
+        "n_segments": 575.0,
+        "r2_weighted": 0.077,
+        "low_is_thinner_sections": 1.0
+      },
+      {
+        "pipeline": "УЗ-1 КПСОД - ДНС-1",
+        "sections": 5.0,
+        "n_segments": 428.0,
+        "r2_weighted": 0.0893,
+        "low_is_thinner_sections": 4.0
+      }
+    ]
+  }
+}
