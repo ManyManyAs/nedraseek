@@ -174,6 +174,9 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
     by_block = pd.DataFrame([{"block": bi, "segments": f"{np.where(block_of == bi)[0][0]}–{np.where(block_of == bi)[0][-1]}",
                               **{k: pearson_r2(y[block_of == bi], P_[k][block_of == bi]) for k in ("pers", "q05", "mc", "blend")}}
                              for bi in range(c["val_blocks"])])
+    # Интервал итогового прогноза: интервал модели, расширенный на поправку смеси.
+    d_ = P_["blend"] - P_["mc"]
+    P_["p10"], P_["p90"] = np.minimum(P_["p10"], P_["p10"] + d_), np.maximum(P_["p90"], P_["p90"] + d_)
     coverage = float(np.mean((y >= P_["p10"]) & (y <= P_["p90"])))
     val_points = pd.DataFrame({"id": vid, "segment_id": np.arange(n), "block": block_of, "fact": y,
                                **{f"pred_{k}": P_[k] for k in ("raw", "pers", "q05", "mc", "blend", "p10", "p90")}})
@@ -227,7 +230,11 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
     touched = np.unique(np.concatenate([cut_seg - 1, cut_seg, cut_seg + 1])) if len(cut_seg) else cut_seg
     touched = touched[(touched >= 0) & (touched < len(pred))]
     pred.loc[touched, "thickness_pred"] = pred.loc[touched, "model_only"]
-    pred["thickness_pred"] = pred["thickness_pred"].clip(lower=0.0)
+    pred["thickness_pred"] = pred["thickness_pred"].clip(lower=0.0, upper=wall_t)
+    # Интервал расширяем на поправку смеси, чтобы прогноз всегда лежал внутри своего интервала.
+    delta = pred["thickness_pred"] - pred["model_only"]
+    pred["p10"] = np.minimum(pred["p10"], pred["p10"] + delta).clip(lower=0.0, upper=wall_t)
+    pred["p90"] = np.maximum(pred["p90"], pred["p90"] + delta).clip(lower=0.0, upper=wall_t)
     pred.insert(0, "id", tid)
     pred["thk_start_run"] = prev["thk_min"].to_numpy()
     pred["n_defects_start_run"] = prev["n_def"].to_numpy()
