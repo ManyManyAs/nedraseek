@@ -68,20 +68,3 @@ def fine_align(a: pd.DataFrame, b: pd.DataFrame, length_m: float, coarse: pd.Dat
         if c > 0.3:
             x2[m] = xa[m] + k
     return x2
-
-
-class LinearDrift:
-    """Сдвиг как линейная функция дистанции по трубопроводу, по опорным точкам на соседних участках.
-
-    Используется, когда целевой пропуск на самом участке неизвестен, но известен на участках
-    до и после него: расхождение одометров копится плавно, поэтому между опорами интерполируем.
-    """
-
-    def __init__(self, raw_points, shifts):
-        self.raw = np.asarray(raw_points, dtype=float)
-        self.shift = np.asarray(shifts, dtype=float)
-        order = np.argsort(self.raw)
-        self.raw, self.shift = self.raw[order], self.shift[order]
-
-    def __call__(self, x_raw) -> np.ndarray:
-        return np.interp(np.asarray(x_raw, dtype=float), self.raw, self.shift)

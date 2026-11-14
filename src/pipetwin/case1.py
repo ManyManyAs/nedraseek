@@ -31,7 +31,7 @@ def match_defects(a: pd.DataFrame, b: pd.DataFrame, d_mm: float, tol_m: float = 
     Возвращает (пары, новые дефекты B без пары, маска подтверждённых дефектов A).
     """
     arc = np.pi * d_mm / 1000.0 / 360.0  # метров на градус
-    # Угол периодичен: 359° и 1°: соседи. Копии A со сдвигом ±360° дают кратчайшую дугу.
+    # Угол периодичен, 359° и 1° соседние. Копии A со сдвигом ±360° дают кратчайшую дугу.
     xa, ang = a["x2"].to_numpy(), a["ang"].to_numpy() % 360.0
     n_a = len(a)
     tree = cKDTree(np.c_[np.tile(xa, 3), np.concatenate([ang - 360.0, ang, ang + 360.0]) * arc])

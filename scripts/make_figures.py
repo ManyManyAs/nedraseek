@@ -83,7 +83,7 @@ def approaches(val: pd.DataFrame) -> None:
         colors = [BLUE if f else "#a9c8ee" for f in final]
         ax.barh(v["label"], v[col], color=colors, height=0.62)
         for y, (x, f) in enumerate(zip(v[col], final)):
-            ax.text(x + ax.get_xlim()[1] * 0.015 if False else x, y, "  " + fmt.format(x).replace(".", ","),
+            ax.text(x, y, "  " + fmt.format(x).replace(".", ","),
                     va="center", fontsize=11, color=INK if f else INK2, fontweight="bold" if f else "normal")
         ax.set_title(title, fontsize=12)
         ax.grid(axis="y", visible=False)
@@ -119,16 +119,11 @@ def horizons(hz: pd.DataFrame, val: pd.DataFrame) -> None:
 
 def alignment(js: pd.DataFrame, P: pd.DataFrame, target: int) -> None:
     """Сдвиг дистанций 2022 → 2023 по началам общих труб и интерполяция через целевой участок."""
-    pp = P.set_index("id")
-    ids = P.loc[P["pipeline"] == pp.loc[target, "pipeline"], "id"]
-    starts = {}
-    x0 = 0.0
-    for i in ids:  # участки трубопровода идут подряд
-        starts[i] = x0
-        x0 += pp.loc[i, "length_m"]
-    t0 = js.loc[js["id_a"] != target, "js_a"]
+    # Пропуска 2023 года на целевом участке нет, поэтому он виден как самый длинный разрыв между началами труб.
+    x = np.sort(js["js_a"].to_numpy())
+    k = int(np.argmax(np.diff(x)))
+    lo_t, hi_t = x[k], x[k + 1]
     fig, ax = plt.subplots(figsize=(10, 3.8))
-    lo_t, hi_t = js.loc[js["id_a"] == ids.iloc[0], "js_a"].max(), js.loc[js["id_a"] == ids.iloc[-1], "js_a"].min()
     ax.axvspan(lo_t, hi_t, color="#eef3fb", zorder=0)
     ax.text((lo_t + hi_t) / 2, 12.3, f"Целевой участок {target}: пропуска 2023 года нет",
             ha="center", fontsize=10, color=INK2)

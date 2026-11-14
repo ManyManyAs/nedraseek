@@ -47,23 +47,3 @@ def profile_features(profile: pd.DataFrame, pipe_id: int, length_m: float) -> pd
     out["p_dist_min"] = d
     out["p_after_min"] = after.astype(float)
     return out
-
-
-REGIME_COLS = ["watercut", "v_mix", "v_liquid_true", "t_mix", "p_start", "q", "q_oil", "q_gas",
-               "gas_content_rate", "pit_corrosion_intensity", "fill_coefficient"]
-
-
-def regime_features(regime: pd.DataFrame, pipe_id: int, date_from, date_to) -> dict:
-    """Агрегаты режима участка за интервал. Режим один на весь участок."""
-    r = regime[(regime["id"] == pipe_id) & (regime["date"] > pd.Timestamp(date_from)) &
-               (regime["date"] <= pd.Timestamp(date_to))]
-    years = (pd.Timestamp(date_to) - pd.Timestamp(date_from)).days / 365.25
-    out = {"r_years": years, "r_coverage": len(r) / max((pd.Timestamp(date_to) - pd.Timestamp(date_from)).days, 1)}
-    for c in REGIME_COLS:
-        v = r[c].astype(float) if c in r else pd.Series(dtype=float)
-        if c == "p_start":
-            v = v[v < 200]  # выбросы давления
-        out[f"r_{c}"] = float(v.median()) if len(v) else np.nan
-    out["r_lowv_share"] = float((r["v_mix"] < 0.3).mean()) if len(r) else np.nan
-    out["r_laminar_share"] = float((r["flow_regime_real"] == "Ламинарный").mean()) if len(r) else np.nan
-    return out

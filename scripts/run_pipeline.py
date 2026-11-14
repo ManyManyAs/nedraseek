@@ -9,7 +9,6 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import yaml
 
@@ -20,7 +19,6 @@ from pipetwin import data, pipeline, submission  # noqa: E402
 
 def main(config: str = "config.yaml") -> pd.DataFrame:
     cfg = yaml.safe_load(Path(config).read_text(encoding="utf-8"))
-    np.random.seed(cfg["seed"])
     raw, out = cfg["paths"]["raw"], Path(cfg["paths"]["out"])
     out.mkdir(parents=True, exist_ok=True)
     pd.set_option("display.width", 200)

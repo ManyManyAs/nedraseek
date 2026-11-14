@@ -13,9 +13,6 @@ FILES = {
     "passport": "pot_south.csv",
     "profile": "altitudes_south.csv",
     "vtd": "vtd_south_train.csv",
-    "uzt": "uzt_south.csv",
-    "regime": "tech_mode_for_embedings_with_length_with_temperatures_ids16.csv",
-    "repcorr": "repcorr_south.csv",
 }
 SEG_LEN = 10.0
 
@@ -99,7 +96,7 @@ def load_vtd(raw: str | Path) -> pd.DataFrame:
          металла; швы, арматура, вмятины без потери металла отбрасываются;
       2. пропуск 2018 года хранит глубину долей (0.18), остальные: процентами (18): приводим к %;
       3. написания типа дефекта («внутр.» / «Внутренний») сводятся к флагу internal;
-      4. пустой угол заменяется на 180° (низ трубы): таких записей единицы.
+      4. пустой угол заменяется на 180° (низ трубы); в текущей выгрузке таких записей нет.
     """
     v = check_columns(pd.read_csv(Path(raw) / FILES["vtd"], low_memory=False), "vtd")
     v = v.rename(columns={
@@ -167,12 +164,3 @@ def segment_state(defects: pd.DataFrame, length_m: float, wall_mm: float, x_col:
     out["thk_min"] = out["thk_min"].fillna(out["wt"])
     out["rw_q05"] = out["rw_q05"].fillna(out["wt"])
     return out
-
-
-# ---------- режим ----------
-
-def load_regime(raw: str | Path) -> pd.DataFrame:
-    r = pd.read_csv(Path(raw) / FILES["regime"], low_memory=False)
-    r = r.rename(columns={"simple_section_id": "id"})
-    r["date"] = pd.to_datetime(r["calc_date"]).dt.normalize()
-    return r.drop(columns="calc_date").sort_values(["id", "date"]).drop_duplicates(["id", "date"]).reset_index(drop=True)

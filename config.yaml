@@ -1,4 +1,4 @@
-# Конфигурация пайплайна PipeTwin.
+# Конфигурация пайплайна NedraSeek.
 seed: 42
 paths:
   raw: data/raw
