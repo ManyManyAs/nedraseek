@@ -95,7 +95,7 @@ def test_angle_wraps_around_zero():
 
 
 def test_wrong_segment_key_is_caught():
-    """ответ сверяется с независимой сеткой, а не с самим собой."""
+    """Ответ сверяется с независимой сеткой из паспорта, а не с самим собой."""
     grid = pd.DataFrame({"id": [1, 1, 1], "segment_id": [0, 1, 2]})
     bad = pd.DataFrame({"id": [1, 1, 1], "segment_id": [0, 1, 999999], "thickness_pred": [7.0, 6.5, 6.8]})
     assert submission.validate_result(bad, grid)
@@ -111,7 +111,7 @@ def test_constant_and_written_precision():
 
 
 def test_result_does_not_depend_on_row_order():
-    """перестановка строк ВТД не меняет прогноз."""
+    """Перестановка строк ВТД не меняет прогноз."""
     from pipetwin import pipeline
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     cfg["case1"]["n_sim"] = 50
@@ -132,7 +132,7 @@ def _case1(n_sim=60, **over):
 
 
 def test_heldout_block_does_not_leak():
-    """изменение скрытого блока пропуска B не меняет прогноз для этого блока."""
+    """Изменение скрытого блока пропуска B не меняет прогноз для этого блока."""
     pipeline, cfg, P, V, J = _case1()
     base = pipeline.run_case1(cfg, P, V, J)["val_points"]
     vid, B = int(base["id"].iloc[0]), pd.Timestamp(cfg["case1"]["target_run"])
@@ -182,7 +182,7 @@ def test_case2_reference_and_shape():
     assert pred["thickness_pred"].between(0.3 * 4.5, 4.5).all()
     assert int(cfg["case2"]["target_id"]) not in set(ref["id"])          # целевой участок в проверке не участвует
     assert (pd.to_datetime(ref["run"]) < pd.Timestamp(cfg["case2"]["target_date"])).all()   # только пропуски до T
-    assert ref["r2"].notna().all() and ref["r2"].between(0, 0.3).all()   # сигнал слабый: и мы это знаем
+    assert ref["r2"].notna().all() and ref["r2"].between(0, 0.3).all()   # сигнал слабый, это ожидаемо
 
 
 def test_missing_column_is_reported(tmp_path):
