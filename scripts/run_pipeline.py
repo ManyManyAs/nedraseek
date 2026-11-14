@@ -71,8 +71,12 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
     r1["pred"].round(4).to_csv(out / "case1_segments.csv", index=False)
     r2.round(4).to_csv(out / "case2_segments.csv", index=False)
     c2["reference"].round(4).to_csv(out / "validation_case2.csv", index=False)
-    pd.concat([pipeline.top_segments(r1["pred"], pp.loc[t1, "length_m"]),
-               pipeline.top_segments(r2, pp.loc[t2, "length_m"])]).round(3).to_csv(out / "top10_segments.csv", index=False)
+    top = pd.concat([pipeline.top_segments(r1["pred"], pp.loc[t1, "length_m"]),
+                     pipeline.top_segments(r2, pp.loc[t2, "length_m"])])
+    top.round(3).to_csv(out / "top10_segments.csv", index=False)
+    pipeline.top_intervals(top).round(3).to_csv(out / "top10_intervals.csv", index=False)
+    # Сводная таблица подходов для слайдов: одна выборка, одна схема проверки.
+    r1["validation"].assign(case=1).round(3).to_csv(out / "approaches.csv", index=False)
     gm = r1["model"]
     c1 = cfg["case1"]
     summary = {

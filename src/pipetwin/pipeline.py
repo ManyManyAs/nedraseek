@@ -267,3 +267,16 @@ def top_segments(pred: pd.DataFrame, length_m: float, frac: float = 0.10) -> pd.
     t["dist_from_m"] = t["segment_id"] * data.SEG_LEN
     t["dist_to_m"] = np.minimum(t["dist_from_m"] + data.SEG_LEN, length_m)
     return t[["rank", "id", "segment_id", "dist_from_m", "dist_to_m", "thickness_pred", "p10", "p90", "wall_mm"]]
+
+
+def top_intervals(top: pd.DataFrame) -> pd.DataFrame:
+    """Соседние опасные сегменты, склеенные в участки: службе удобнее выезжать на интервал, чем на 30 строк."""
+    rows = []
+    for pid, g in top.sort_values(["id", "segment_id"]).groupby("id"):
+        run = (g["segment_id"].diff() != 1).cumsum()
+        for _, r in g.groupby(run):
+            rows.append({"id": pid, "dist_from_m": r["dist_from_m"].min(), "dist_to_m": r["dist_to_m"].max(),
+                         "segments": len(r), "min_thickness_pred_mm": r["thickness_pred"].min(),
+                         "min_p10_mm": r["p10"].min(), "best_rank": int(r["rank"].min())})
+    return pd.DataFrame(rows).sort_values(["id", "best_rank"]).reset_index(drop=True)
+
