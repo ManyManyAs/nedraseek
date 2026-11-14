@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,7 +91,7 @@ def test_angle_wraps_around_zero():
     assert sorted(pairs["dp_a"]) == [15.0, 20.0]
     b2 = pd.DataFrame({"x": [1.0], "ang": [0.0]}).assign(dp=10.0)
     a2 = pd.DataFrame({"x2": [1.0], "ang": [360.0], "dp": [10.0]})
-    assert len(case1.match_defects(a2, b2, 219.0, 0.08)[0]) == 1      # 0° и 360° — одно и то же
+    assert len(case1.match_defects(a2, b2, 219.0, 0.08)[0]) == 1      # 0° и 360°: одно и то же
 
 
 def test_wrong_segment_key_is_caught():
@@ -104,7 +105,7 @@ def test_constant_and_written_precision():
     """Константный ряд даёт NaN, а не случайное число."""
     assert np.isnan(pearson_r2([0.1, 0.1, 0.1], [1.0, 2.0, 3.0]))
     grid = pd.DataFrame({"id": [1] * 3, "segment_id": [0, 1, 2]})
-    tiny = grid.assign(thickness_pred=[7.00001, 7.00002, 7.00003])     # после округления до 4 знаков — константа
+    tiny = grid.assign(thickness_pred=[7.00001, 7.00002, 7.00003])     # после округления до 4 знаков: константа
     assert submission.validate_result(tiny, grid)
     assert submission.validate_result(grid.assign(thickness_pred=["7", "x", "6"]), grid)
 
@@ -162,11 +163,11 @@ def test_repair_scenario_raises_flagged_segments():
     flag = p1["repair_flag"].to_numpy()
     assert 3 <= flag.sum() <= 12
     d = p1["model_only"].to_numpy() - p0["model_only"].to_numpy()
-    assert d[flag].max() > 2.0                               # заменённая труба — почти номинальная стенка
+    assert d[flag].max() > 2.0                               # заменённая труба: почти номинальная стенка
     far = np.ones(len(p1), dtype=bool)
     for i in np.where(flag)[0]:
         far[max(0, i - 2): i + 3] = False
-    assert np.abs(d[far]).mean() < 0.08 and abs(d[far].mean()) < 0.02   # остальные — только шум розыгрыша, без смещения
+    assert np.abs(d[far]).mean() < 0.08 and abs(d[far].mean()) < 0.02   # остальные: только шум розыгрыша, без смещения
 
 
 def test_case2_reference_and_shape():
@@ -181,4 +182,12 @@ def test_case2_reference_and_shape():
     assert pred["thickness_pred"].between(0.3 * 4.5, 4.5).all()
     assert int(cfg["case2"]["target_id"]) not in set(ref["id"])          # целевой участок в проверке не участвует
     assert (pd.to_datetime(ref["run"]) < pd.Timestamp(cfg["case2"]["target_date"])).all()   # только пропуски до T
-    assert ref["r2"].notna().all() and ref["r2"].between(0, 0.3).all()   # сигнал слабый — и мы это знаем
+    assert ref["r2"].notna().all() and ref["r2"].between(0, 0.3).all()   # сигнал слабый: и мы это знаем
+
+
+def test_missing_column_is_reported(tmp_path):
+    raw = Path(__file__).resolve().parents[1] / "data" / "raw"
+    a = pd.read_csv(raw / data.FILES["profile"]).drop(columns=["z"])
+    a.to_csv(tmp_path / data.FILES["profile"], index=False)
+    with pytest.raises(ValueError, match="z"):
+        data.load_profile(tmp_path)

@@ -5,7 +5,7 @@ import numpy as np
 
 
 def pearson_r2(y_true, y_pred) -> float:
-    """Квадрат коэффициента корреляции Пирсона — метрика организаторов. NaN для константы."""
+    """Квадрат коэффициента корреляции Пирсона: метрика организаторов. NaN для константы."""
     a, b = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)
     if len(a) != len(b):
         raise ValueError(f"разная длина: {len(a)} и {len(b)}")
@@ -24,7 +24,7 @@ def mae(y_true, y_pred) -> float:
 def top_recall(y_true, score, frac: float = 0.10) -> float:
     """Доля реально самых тонких сегментов (нижние frac), попавших в наш список риска.
 
-    score — чем меньше, тем опаснее (например, нижняя граница толщины).
+    score: чем меньше, тем опаснее (например, нижняя граница толщины).
     """
     y_true, score = np.asarray(y_true, dtype=float), np.asarray(score, dtype=float)
     k = max(1, int(round(len(y_true) * frac)))

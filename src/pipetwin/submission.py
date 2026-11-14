@@ -46,4 +46,4 @@ def write_result(res: pd.DataFrame, grid: pd.DataFrame, path: str | Path) -> Non
     errs = validate_result(res, grid)
     if errs:
         raise ValueError("result.csv не прошёл проверку: " + "; ".join(errs))
-    res.to_csv(path, index=False, float_format="%.4f", lineterminator="\n")  # десятичный разделитель — точка
+    res.to_csv(path, index=False, float_format="%.4f", lineterminator="\n")  # десятичный разделитель: точка

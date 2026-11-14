@@ -99,7 +99,7 @@ def main(config: str = "config.yaml") -> pd.DataFrame:
                   "feature_r2_by_pipeline": c2["by_pipeline"].round(4).to_dict("records")},
     }
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[4] записан {cfg['paths']['result']}: {len(both)} строк; таблицы — в {out}/")
+    print(f"[4] записан {cfg['paths']['result']}: {len(both)} строк; таблицы: в {out}/")
     return both
 
 

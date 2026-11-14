@@ -53,7 +53,7 @@ def _anchor(V, js, pid, length, d_mm, acc, date_a, date_b, tol, exclude=None) ->
 
 
 def _xcorr_pair(V, pid, length, date_a, date_b) -> dict:
-    """Выравнивание по плотности дефектов — для пар пропусков, где номера труб не совпадают (2018 год).
+    """Выравнивание по плотности дефектов: для пар пропусков, где номера труб не совпадают (2018 год).
 
     Использует пропуск B, поэтому годится только для диагностики, не для оценки точности прогноза.
     """
@@ -70,7 +70,7 @@ def _xcorr_pair(V, pid, length, date_a, date_b) -> dict:
 def drift_linearity(V, pid, length, date_a, date_b) -> pd.DataFrame:
     """Насколько сдвиг внутри участка отклоняется от прямой между его концами.
 
-    Считается на паре пропусков, известной по всей длине участка. Разброс отклонений — оценка
+    Считается на паре пропусков, известной по всей длине участка. Разброс отклонений: оценка
     ошибки, которую даёт линейная интерполяция сдвига, когда целевой пропуск внутри участка скрыт.
     """
     co = _xcorr_pair(V, pid, length, date_a, date_b)["coarse"]
@@ -80,7 +80,7 @@ def drift_linearity(V, pid, length, date_a, date_b) -> pd.DataFrame:
 
 
 def _bump(x, length: float) -> np.ndarray:
-    """Форма ошибки положения: у концов участка, где сдвиг измерен, меньше; в середине — больше.
+    """Форма ошибки положения: у концов участка, где сдвиг измерен, меньше; в середине: больше.
 
     Ошибка одна на весь розыгрыш (общий уход одометра), а не независимая для каждого дефекта.
     """
@@ -99,7 +99,7 @@ def _fit(parts) -> case1.GrowthModel:
 
 
 def _outside(s: dict, lo: float, hi: float) -> dict:
-    """Данные опорного участка вне интервала [lo, hi) шкалы B — для обучения закона роста."""
+    """Данные опорного участка вне интервала [lo, hi) шкалы B: для обучения закона роста."""
     out = lambda x: ~((x >= lo) & (x < hi))  # noqa: E731
     ma = out(s["a"]["x2"]).to_numpy()
     return {"a": s["a"][ma], "confirmed": s["confirmed"][ma],
@@ -128,13 +128,13 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
     L_t, wall_t, d_mm = pp.loc[tid, "length_m"], pp.loc[tid, "wall_mm"], pp.loc[tid, "d_mm"]
     js = joint_shifts(J, A, B, pipe_ids)
     if len(js) < 2:
-        raise RuntimeError("нет общих труб в двух пропусках — сдвиг дистанций оценить не на чем")
+        raise RuntimeError("нет общих труб в двух пропусках: сдвиг дистанций оценить не на чем")
 
     # --- 1. Опорные участки: известны оба пропуска.
     anchor_ids = [p for p in pipe_ids if p != tid and {A, B} <= set(data.run_dates(V, p))]
     anchors = {p: _anchor(V, js, p, pp.loc[p, "length_m"], d_mm, acc[p], A, B, tol) for p in anchor_ids}
     if not anchors:
-        raise RuntimeError("нет участков с обоими пропусками — закон роста оценить не на чем")
+        raise RuntimeError("нет участков с обоими пропусками: закон роста оценить не на чем")
 
     # --- 2. Независимая проверка по блокам на самом длинном опорном участке.
     #     Блок сегментов скрыт целиком вместе с зазором: его пропуск B не участвует ни в оценке
@@ -201,7 +201,7 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
     pos_sigma = float(np.sqrt(np.mean(lin["residual"] ** 2))) if len(lin) >= 4 else c["pos_sigma_m"]
     pos_sigma = max(pos_sigma, c["pos_sigma_m"])
 
-    # --- 5. Прогноз целевого участка. Источник — дефекты пропуска A всего трубопровода:
+    # --- 5. Прогноз целевого участка. Источник: дефекты пропуска A всего трубопровода:
     #        после перевода в шкалу B часть дефектов соседних участков попадает в целевой.
     src = V[(V["id"].isin(pipe_ids)) & (V["date"] == A)].copy()
     src["xt"] = src["x_raw"].to_numpy() + _shift_fn(js)(src["x_raw"]) - acc[tid]

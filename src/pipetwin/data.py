@@ -1,6 +1,6 @@
 """Загрузка и очистка реальных файлов организаторов (data/raw/).
 
-Ключ везде — ID простого участка. Все правила очистки собраны здесь, сводка в README.
+Ключ везде: ID простого участка. Все правила очистки собраны здесь, сводка в README.
 """
 from __future__ import annotations
 
@@ -18,6 +18,25 @@ FILES = {
     "repcorr": "repcorr_south.csv",
 }
 SEG_LEN = 10.0
+
+# Колонки, без которых расчёт не работает. Проверяются при чтении, чтобы при новой выгрузке
+# сразу было видно, чего не хватает, а не ловить KeyError в середине пайплайна.
+REQUIRED = {
+    "profile": ["id", "total_distance", "z"],
+    "vtd": ["id", "date", "Distance", "Distance_raw", "Wall Thickness", "Residual Wall Thickness",
+            "Defect Depth in %", "Angle", "Feature Length", "Feature Width", "Defect Type",
+            "Section Number", "Relative Distance", "Recommended Repair Method", "Repair Time (Years)",
+            "is_beyond_pot", "Class", "Feature Description"],
+}
+
+
+def check_columns(df: pd.DataFrame, key: str) -> pd.DataFrame:
+    missing = [c for c in REQUIRED.get(key, []) if c not in df.columns]
+    if missing:
+        raise ValueError(f"в файле {FILES[key]} нет колонок: {', '.join(missing)}")
+    if df.empty:
+        raise ValueError(f"файл {FILES[key]} пустой")
+    return df
 
 
 # ---------- сегменты ----------
@@ -61,9 +80,9 @@ def load_passport(raw: str | Path) -> pd.DataFrame:
 
 
 def load_profile(raw: str | Path) -> pd.DataFrame:
-    a = pd.read_csv(Path(raw) / FILES["profile"])
+    a = check_columns(pd.read_csv(Path(raw) / FILES["profile"]), "profile")
     a = a.rename(columns={"total_distance": "dist_m", "z": "z_m"})
-    # Повторы дистанции усредняются, а не берётся первая строка — так порядок выгрузки не важен.
+    # Повторы дистанции усредняются, а не берётся первая строка: так порядок выгрузки не важен.
     return a.groupby(["id", "dist_m"], as_index=False)["z_m"].mean().sort_values(["id", "dist_m"]).reset_index(drop=True)
 
 
@@ -76,13 +95,13 @@ def load_vtd(raw: str | Path) -> pd.DataFrame:
     """Записи потери металла по всем пропускам в единой шкале.
 
     Правила очистки:
-      1. оставляем записи, у которых есть и остаточная толщина, и глубина — это дефекты потери
+      1. оставляем записи, у которых есть и остаточная толщина, и глубина: это дефекты потери
          металла; швы, арматура, вмятины без потери металла отбрасываются;
-      2. пропуск 2018 года хранит глубину долей (0.18), остальные — процентами (18): приводим к %;
+      2. пропуск 2018 года хранит глубину долей (0.18), остальные: процентами (18): приводим к %;
       3. написания типа дефекта («внутр.» / «Внутренний») сводятся к флагу internal;
-      4. пустой угол заменяется на 180° (низ трубы) — таких записей единицы.
+      4. пустой угол заменяется на 180° (низ трубы): таких записей единицы.
     """
-    v = pd.read_csv(Path(raw) / FILES["vtd"], low_memory=False)
+    v = check_columns(pd.read_csv(Path(raw) / FILES["vtd"], low_memory=False), "vtd")
     v = v.rename(columns={
         "Distance": "x", "Distance_raw": "x_raw", "Wall Thickness": "wt",
         "Residual Wall Thickness": "rw", "Defect Depth in %": "dp", "Angle": "ang",
@@ -107,7 +126,7 @@ def load_vtd(raw: str | Path) -> pd.DataFrame:
 def load_joints(raw: str | Path) -> pd.DataFrame:
     """Начала труб (секций между кольцевыми швами) в каждом пропуске: одна строка на (пропуск, номер трубы).
 
-    Снаряд для каждой записи даёт номер трубы и расстояние от её начала. Начало трубы по одометру —
+    Снаряд для каждой записи даёт номер трубы и расстояние от её начала. Начало трубы по одометру -
     дистанция записи минус это расстояние; берётся медиана по всем записям трубы, включая швы и арматуру.
     Номера труб пропусков 2022 и 2023 годов совпадают, поэтому по ним дистанции двух пропусков
     совмещаются точнее, чем по плотности дефектов.
@@ -130,7 +149,7 @@ def run_dates(vtd: pd.DataFrame, pipe_id: int) -> list[pd.Timestamp]:
 def segment_state(defects: pd.DataFrame, length_m: float, wall_mm: float, x_col: str = "x") -> pd.DataFrame:
     """Состояние сегментов по набору дефектов одного пропуска одного участка.
 
-    thk_min — минимальная остаточная толщина; в сегменте без дефектов — толщина стенки.
+    thk_min: минимальная остаточная толщина; в сегменте без дефектов: толщина стенки.
     """
     n = n_segments(length_m)
     d = defects.assign(seg=seg_of(defects[x_col], length_m))
