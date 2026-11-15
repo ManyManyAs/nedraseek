@@ -34,20 +34,20 @@
         "method": "Модель роста дефектов",
         "horizon_years": 1.4,
         "n_segments": 50,
-        "r2": 0.6946,
-        "mae_mm": 0.212,
+        "r2": 0.7002,
+        "mae_mm": 0.2017,
         "top10_recall": 0.6
       },
       {
         "method": "Модель роста + 5-й перцентиль (итоговая)",
         "horizon_years": 1.4,
         "n_segments": 50,
-        "r2": 0.7535,
-        "mae_mm": 0.2023,
+        "r2": 0.7594,
+        "mae_mm": 0.1955,
         "top10_recall": 0.6
       }
     ],
-    "p10_p90_coverage": 0.8,
+    "p10_p90_coverage": 0.82,
     "matched_pairs": 2772,
     "new_defects_per_old": 0.22,
     "shift_start_m": 1.82,
@@ -85,45 +85,45 @@
     "repair_sensitivity_segments": [
       {
         "segment_id": 130,
-        "if_no_repair": 3.71,
-        "if_repaired": 4.11,
-        "thickness_pred": 4.01
+        "if_no_repair": 4.19,
+        "if_repaired": 4.6,
+        "thickness_pred": 4.52
       },
       {
         "segment_id": 131,
-        "if_no_repair": 3.12,
+        "if_no_repair": 3.65,
         "if_repaired": 7.9,
-        "thickness_pred": 7.0
+        "thickness_pred": 7.11
       },
       {
         "segment_id": 134,
-        "if_no_repair": 5.16,
+        "if_no_repair": 5.35,
         "if_repaired": 6.01,
-        "thickness_pred": 5.8
+        "thickness_pred": 5.85
       },
       {
         "segment_id": 135,
-        "if_no_repair": 3.06,
+        "if_no_repair": 3.53,
         "if_repaired": 6.37,
-        "thickness_pred": 5.71
+        "thickness_pred": 5.81
       },
       {
         "segment_id": 183,
-        "if_no_repair": 3.79,
-        "if_repaired": 3.8,
-        "thickness_pred": 3.79
+        "if_no_repair": 4.27,
+        "if_repaired": 4.24,
+        "thickness_pred": 4.25
       },
       {
         "segment_id": 184,
-        "if_no_repair": 3.51,
-        "if_repaired": 6.62,
-        "thickness_pred": 6.01
+        "if_no_repair": 4.04,
+        "if_repaired": 6.72,
+        "thickness_pred": 6.19
       },
       {
         "segment_id": 185,
-        "if_no_repair": 4.3,
+        "if_no_repair": 4.61,
         "if_repaired": 5.68,
-        "thickness_pred": 5.42
+        "thickness_pred": 5.48
       }
     ]
   },

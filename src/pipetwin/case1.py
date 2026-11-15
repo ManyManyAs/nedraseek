@@ -53,17 +53,23 @@ class GrowthModel:
         g = (pairs["dp_b"] - pairs["dp_a"]).to_numpy()
         da = pairs["dp_a"].to_numpy()
         dp_a_all, confirmed = np.asarray(dp_a_all, dtype=float), np.asarray(confirmed, dtype=bool)
+        # Окно по глубине расширяем только до 8 п. п. Глубже, чем есть пары, берём выборку ближайшей
+        # глубины, где она набралась: среднее по всем парам дало бы рост там, где тренд обратный.
+        pools, conf = {}, {}
         for d in range(0, 101):
-            for w in (1.0, 2.0, 4.0, 8.0, 100.0):  # расширяем окно, пока не наберётся выборка
+            for w in (1.0, 2.0, 4.0, 8.0):
                 sel = np.abs(da - d) <= w
                 if sel.sum() >= 40:
+                    pools[d] = g[sel]
                     break
-            m.pools[d] = g[sel]
-            for w in (1.0, 2.0, 4.0, 8.0, 100.0):
+            for w in (1.0, 2.0, 4.0, 8.0):
                 sel = np.abs(dp_a_all - d) <= w
                 if sel.sum() >= 60:
+                    conf[d] = float(confirmed[sel].mean())
                     break
-            m.p_confirm[d] = float(confirmed[sel].mean())
+        for d in range(0, 101):
+            m.pools[d] = pools[min(pools, key=lambda k: abs(k - d))]
+            m.p_confirm[d] = conf[min(conf, key=lambda k: abs(k - d))]
         m.new_rate = len(new_dp) / max(len(dp_a_all), 1)
         m.new_dp = np.asarray(new_dp, dtype=float)
         return m
