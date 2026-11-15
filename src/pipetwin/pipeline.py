@@ -1,4 +1,4 @@
-"""Сборка решения: от исходных файлов до прогноза, валидации и вспомогательных таблиц."""
+"""Сборка решения: прогноз, проверка и таблицы для outputs/."""
 from __future__ import annotations
 
 import numpy as np
@@ -70,8 +70,8 @@ def _xcorr_pair(V, pid, length, date_a, date_b) -> dict:
 def drift_linearity(V, pid, length, date_a, date_b) -> pd.DataFrame:
     """Насколько сдвиг внутри участка отклоняется от прямой между его концами.
 
-    Считается на паре пропусков, известной по всей длине участка. Разброс отклонений: оценка
-    ошибки, которую даёт линейная интерполяция сдвига, когда целевой пропуск внутри участка скрыт.
+    Считается на паре пропусков, известной по всей длине участка. По разбросу отклонений
+    видно, насколько ошибается линейная интерполяция, когда нового пропуска внутри участка нет.
     """
     co = _xcorr_pair(V, pid, length, date_a, date_b)["coarse"]
     co = co[co["corr"] >= 0.3].reset_index(drop=True)
@@ -80,7 +80,7 @@ def drift_linearity(V, pid, length, date_a, date_b) -> pd.DataFrame:
 
 
 def _bump(x, length: float) -> np.ndarray:
-    """Форма ошибки положения: у концов участка, где сдвиг измерен, меньше; в середине: больше.
+    """Форма ошибки положения: у концов участка, где сдвиг измерен, меньше, в середине больше.
 
     Ошибка одна на весь розыгрыш (общий уход одометра), а не независимая для каждого дефекта.
     """
@@ -204,8 +204,8 @@ def run_case1(cfg: dict, P: pd.DataFrame, V: pd.DataFrame, J: pd.DataFrame | Non
     pos_sigma = float(np.sqrt(np.mean(lin["residual"] ** 2))) if len(lin) >= 4 else c["pos_sigma_m"]
     pos_sigma = max(pos_sigma, c["pos_sigma_m"])
 
-    # --- 5. Прогноз целевого участка. Источник: дефекты пропуска A всего трубопровода:
-    #        после перевода в шкалу B часть дефектов соседних участков попадает в целевой.
+    # --- 5. Прогноз целевого участка. Берём дефекты пропуска A по всему трубопроводу,
+    #        после сдвига часть дефектов соседних участков попадает в целевой.
     src = V[(V["id"].isin(pipe_ids)) & (V["date"] == A)].copy()
     src["xt"] = src["x_raw"].to_numpy() + _shift_fn(js)(src["x_raw"]) - acc[tid]
     src = src[(src["xt"] >= 0) & (src["xt"] < L_t)]
@@ -278,7 +278,7 @@ def top_segments(pred: pd.DataFrame, length_m: float, frac: float = 0.10) -> pd.
 
 
 def top_intervals(top: pd.DataFrame) -> pd.DataFrame:
-    """Соседние опасные сегменты, склеенные в участки: службе удобнее выезжать на интервал, чем на 30 строк."""
+    """Соседние опасные сегменты, склеенные в участки: для выезда."""
     rows = []
     for pid, g in top.sort_values(["id", "segment_id"]).groupby("id"):
         run = (g["segment_id"].diff() != 1).cumsum()

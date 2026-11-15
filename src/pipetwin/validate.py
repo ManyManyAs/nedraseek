@@ -5,7 +5,7 @@ import numpy as np
 
 
 def pearson_r2(y_true, y_pred) -> float:
-    """Квадрат коэффициента корреляции Пирсона: метрика организаторов. NaN для константы."""
+    """r² Пирсона, как у организаторов. Для константы NaN."""
     a, b = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)
     if len(a) != len(b):
         raise ValueError(f"разная длина: {len(a)} и {len(b)}")

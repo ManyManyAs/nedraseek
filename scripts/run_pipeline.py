@@ -1,6 +1,6 @@
-"""Единая точка входа: исходные CSV из data/raw/ -> result.csv, валидация, вспомогательные таблицы.
+"""data/raw/ -> result.csv и таблицы в outputs/.
 
-Запуск из корня репозитория:  python scripts/run_pipeline.py [--config config.yaml]
+Запуск из корня:  python scripts/run_pipeline.py [--config config.yaml]
 """
 from __future__ import annotations
 
