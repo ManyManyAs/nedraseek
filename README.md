@@ -32,10 +32,13 @@
 
 ```bash
 pip install -r requirements.txt
-python scripts/run_pipeline.py    # ~10 с, пишет result.csv и outputs/
-python scripts/make_figures.py    # графики в outputs/figures/
-python -m pytest -q               # 14 тестов, ~30 с
+python scripts/run_pipeline.py
+python scripts/make_figures.py
+python -m pytest -q
 ```
+
+Первая команда ставит библиотеки, вторая за ~10 с считает `result.csv` и таблицы в `outputs/`, третья строит
+графики в `outputs/figures/`, четвёртая запускает 14 тестов (~30 с).
 
 Данные уже лежат в `data/raw/`. Seed в `config.yaml`, при повторном запуске `result.csv` получается тот же
 байт в байт. Python 3.12+, pandas 2.2+.
